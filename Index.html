@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emmy STACK01 - PDF Document Engine</title>
+  <!-- Typography imports -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <style>
+  /* --- DESIGN SYSTEM TOKENS --- */
+  :root {
+    --bg-print: #ffffff;
+    --primary: #2d66b4;
+    --secondary: #22386e;
+    --accent: #00ccff;
+    --text-main: #000000;
+    
+    --font-body: 'Montserrat', sans-serif;
+    --font-heading: 'Orbitron', sans-serif;
+    
+    /* UI Theme */
+    --ui-bg: #0f111a;
+    --ui-panel: #1e2235;
+    --ui-text: #f0f2f5;
+    --ui-border: #2f354f;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body { 
+    font-family: var(--font-body); 
+    background: var(--ui-bg); 
+    color: var(--ui-text); 
+    display: flex; 
+    height: 100vh; 
+    overflow: hidden; 
+  }
+
+  /* Custom App Scrollbars */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--ui-bg); }
+  ::-webkit-scrollbar-thumb { background: var(--ui-border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  /* --- DASHBOARD INTERFACE PANELS --- */
+  .control-panel {
+    width: 40%;
+    background: var(--ui-panel);
+    border-right: 1px solid var(--ui-border);
+    padding: 2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    height: 100vh;
+  }
+  
+  .panel-title { 
+    font-family: var(--font-heading); 
+    color: var(--accent); 
+    font-size: 1.2rem; 
+    text-transform: uppercase; 
+    letter-spacing: 1px; 
+    margin-bottom: 0.5rem; 
+  }
+  
+  .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+  
+  label { 
+    font-size: 0.85rem; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+    color: #a0aec0; 
+    font-weight: 600; 
+  }
+  
+  select, input, textarea { 
+    background: var(--ui-bg); 
+    border: 1px solid var(--ui-border); 
+    padding: 0.75rem; 
+    color: #fff; 
+    border-radius: 4px; 
+    font-family: var(--font-body); 
+    font-size: 0.95rem; 
+    transition: border 0.2s; 
+  }
+  
+  select:focus, input:focus, textarea:focus { border-color: var(--accent); outline: none; }
+  
+  .btn-export { 
+    background: var(--primary); 
+    color: #fff; 
+    border: none; 
+    padding: 1rem; 
+    border-radius: 4px; 
+    font-family: var(--font-heading); 
+    font-size: 1rem; 
+    cursor: pointer; 
+    text-transform: uppercase; 
+    margin-top: 1rem; 
+    transition: background 0.2s; 
+  }
+  .btn-export:hover { background: var(--secondary); }
+
+  /* UI Checkbox Layout */
+  .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    background: var(--ui-bg);
+    padding: 0.75rem;
+    border: 1px solid var(--ui-border);
+    border-radius: 4px;
+  }
+  
+  .check-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #fff;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  
+  .check-label input { cursor: pointer; accent-color: var(--accent); }
+  .hidden-section { display: none !important; }
+
+  /* ==========================================================================
+      LIVE SCREEN PREVIEW SURFACE ENVIRONMENT
+     ========================================================================== */
+  .preview-container {
+    width: 60%;
+    height: 100vh;
+    overflow-y: auto;
+    background: #090a0f;
+    padding: 3rem 0; 
+    display: block;  
+  }
+
+  #downloadWrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2.5rem;     
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  /* Consolidated baseline structure for the A4 engine canvas sheets */
+  .paper-sheet {
+    background: var(--bg-print);
+    color: var(--text-main);
+    width: 210mm;
+    height: 297mm; /* Rigid calculation alignment across viewport heights */
+    padding: 25mm 20mm;
+    margin: 0 auto;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; 
+  }
+
+  /* --- HIGH-FIDELITY TYPE & BRAND ARCHITECTURE --- */
+  .doc-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    border-bottom: 2px solid var(--primary); 
+    padding-bottom: 1.5rem; 
+    margin-bottom: 2rem; 
+  }
+  
+  .doc-logo-emmy { 
+    font-family: var(--font-heading); 
+    font-size: 1.4rem; 
+    font-weight: 900; 
+    color: var(--secondary); 
+  }
+  .doc-logo-emmy span { color: var(--primary); }
+  
+  .doc-client-logo { 
+    font-weight: 700; 
+    font-size: 1.1rem; 
+    color: #555; 
+    max-width: 200px; 
+    text-align: right; 
+    text-transform: uppercase;
+  }
+  
+  .doc-title { 
+    font-family: var(--font-heading); 
+    font-size: 1.8rem; 
+    color: var(--secondary); 
+    margin-bottom: 1.5rem; 
+    text-transform: uppercase; 
+    line-height: 1.2; 
+  }
+  
+  .doc-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 2.5rem; }
+  .doc-meta-table td { padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .doc-meta-table td:first-child { font-weight: 700; color: var(--secondary); width: 30%; }
+
+  .doc-body { font-size: 1rem; line-height: 1.6; flex-grow: 1; display: flex; flex-direction: column; }
+  
+  .doc-body h3 { 
+    font-family: var(--font-heading); 
+    font-size: 1.1rem; 
+    color: var(--primary); 
+    margin: 1.5rem 0 0.5rem 0; 
+    text-transform: uppercase; 
+    border-bottom: 1px solid #e2e8f0; 
+    padding-bottom: 0.25rem; 
+  }
+  
+  .doc-body p { margin-bottom: 1rem; text-align: justify; }
+  .doc-body ul { margin-left: 1.25rem; margin-bottom: 1rem; }
+  .doc-body li { margin-bottom: 0.4rem; }
+
+  .signature-grid { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 3rem; 
+    width: 100%; 
+    margin-top: auto; 
+  }
+  
+  .sig-line { 
+    border-top: 1px solid #000; 
+    margin-top: 3rem; 
+    padding-top: 0.5rem; 
+    font-size: 0.85rem; 
+    line-height: 1.4; 
+  }
+  
+  .doc-footer { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-end; 
+    margin-top: 2rem; 
+    padding-top: 1.5rem; 
+    border-top: 1px solid #e2e8f0; 
+  }
+  
+  .qr-container { 
+    width: 80px; 
+    height: 80px; 
+    border: 1px solid #e2e8f0; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 0.5rem; 
+    color: #aaa; 
+    text-align: center; 
+  }
+
+  /* --- VIEWPORT RESPONSIVENESS OVERRIDES --- */
+  @media screen and (max-width: 1024px) {
+    body { flex-direction: column; overflow-y: auto; height: auto; }
+    .control-panel { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--ui-border); position: relative; }
+    .preview-container { width: 100%; height: auto; overflow: visible; padding: 0.2rem 0.1rem; }
+    #downloadWrapper { transform: scale(0.95); transform-origin: top center; gap: 1.5rem; }
+    .paper-sheet { width: 100%; max-width: 210mm; height: auto; min-height: 297mm; padding: 15mm 10mm; box-shadow: none; }
+    .doc-title { font-size: 1.4rem; }
+    .doc-body h3 { font-size: 1rem; }
+    .signature-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+    .sig-line { margin-top: 1.5rem; }
+  }
+
+  /* ==========================================================================
+      COMPILATION ENGINE PRINT MARGIN RULES (PREVENTS ACCIDENTAL BLEED OVER PAGES)
+     ========================================================================== */
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 0 !important;
+    }
+    
+    html, body {
+      background: #ffffff !important;
+      color: #000000 !important;
+      width: 210mm !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+    
+    .control-panel { display: none !important; }
+    .preview-container { width: 210mm !important; padding: 0 !important; margin: 0 !important; background: none !important; }
+    #downloadWrapper { width: 210mm !important; gap: 0 !important; }
+
+    .paper-sheet {
+      width: 210mm !important;
+      height: 297mm !important; /* Forces physical boundary mapping */
+      padding: 20mm 20mm 15mm 20mm !important; /* Slightly optimized text safe boundaries */
+      box-shadow: none !important;
+      margin: 0 !important;
+      page-break-after: always !important;
+      break-after: page !important;
+    }
+    
+    .paper-sheet:last-of-type {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+    }
+
+    /* Print compression filters ensuring 85% scripts compute accurately without overflowing line height elements */
+    .doc-body p { margin-bottom: 0.65rem !important; line-height: 1.45 !important; font-size: 0.95rem !important; }
+    .doc-body ul { margin-bottom: 0.65rem !important; }
+    .doc-body li { margin-bottom: 0.25rem !important; line-height: 1.45 !important; font-size: 0.95rem !important; }
+    .doc-body h3 { margin-top: 1rem !important; margin-bottom: 0.4rem !important; font-size: 1.05rem !important; }
+    .doc-meta-table { margin-bottom: 1.5rem !important; }
+    .signature-grid { gap: 2rem !important; padding-top: 0.5rem !important; }
+    .sig-line { margin-top: 1.5rem !important; }
+    .doc-footer { margin-top: 1rem !important; padding-top: 1rem !important; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- LEFT PANEL: CONTROLS & CONTENT INJECTION -->
+  <aside class="control-panel">
+    <h2 class="panel-title">Document Engine</h2>
+    
+    <div class="form-group">
+      <label for="templateSelect">Document Template</label>
+      <select id="templateSelect">
+        <option value="whiteLabel">Professional White-Label License</option>
+        <option value="projectAgreement">Project Agreement</option>
+      </select>
+    </div>
+
+    <hr style="border-color: var(--ui-border);">
+
+    <div class="form-group">
+      <label for="inputClient">Client / Company Name</label>
+      <input type="text" id="inputClient" value="Acme Corporation">
+    </div>
+
+    <div class="form-group">
+      <label for="inputProject">Software / Project Name</label>
+      <input type="text" id="inputProject" value="Custom E-Commerce Platform & Core Engine">
+    </div>
+
+    <div class="form-group">
+      <label for="inputDate">Effective Date</label>
+      <input type="text" id="inputDate" value="May 24, 2026">
+    </div>
+
+    <div class="form-group">
+      <label for="inputFee">License Fee / Project Cost</label>
+      <input type="text" id="inputFee" value="$100 USD">
+    </div>
+
+    <div class="form-group">
+      <label for="inputQR">QR Code Note & Link (Optional)</label>
+      <input type="text" id="inputQRnote" value="Scan the QR code to sign this document.">
+      <input type="text" id="inputQR" value="https://emmystack01.com/tools/emmy-sign" placeholder="https://...">
+    </div>
+
+    <div id="agreementControls">
+        <div class="form-group">
+            <label>Scope of Work Sub-Modules</label>
+            <div class="checkbox-group">
+            <label class="check-label"><input type="checkbox" id="toggleCreative" checked> Creative Assets (Brand Kit / UI UX)</label>
+            <label class="check-label"><input type="checkbox" id="toggleTechnical" checked> Technical Architecture (Code / SEO)</label>
+            <label class="check-label"><input type="checkbox" id="toggleDeployment" checked> Deployment Operations (Hosting / Git)</label>
+            <label class="check-label"><input type="checkbox" id="toggleSearch" checked> Search Verification (Search Console)</label>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 1.5rem;">
+            <label>Optional Agreement Clauses</label>
+            <div class="checkbox-group">
+            <label class="check-label"><input type="checkbox" id="toggleClause2" checked> Include Clause 2 (Financial & Milestone Terms)</label>
+            <label class="check-label"><input type="checkbox" id="toggleClause3" checked> Include Clause 3 (Domain Infrastructure & Costs)</label>
+            <label class="check-label"><input type="checkbox" id="toggleClause5" checked> Include Clause 5 (White-Label Option)</label>
+            <label class="check-label"><input type="checkbox" id="toggleClause6" checked> Include Clause 6 (Termination & Kill Fee)</label>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-export" id="printBtn">Export Print-Ready PDF</button>
+  </aside>
+
+  <!-- RIGHT PANEL: HIGH FIDELITY PRINT PREVIEW CANVAS -->
+  <main class="preview-container">
+      <div id="downloadWrapper"></div>
+  </main>
+
+  <!-- --- STATE & GENERATION ENGINE --- -->
+  <script>
+// ==========================================================================
+// 1. DOM INITIALIZATION
+// ==========================================================================
+const elements = {
+  templateSelect: document.getElementById('templateSelect'),
+  inputClient: document.getElementById('inputClient'),
+  inputProject: document.getElementById('inputProject'),
+  inputDate: document.getElementById('inputDate'),
+  inputFee: document.getElementById('inputFee'),
+  inputQR: document.getElementById('inputQR'),
+  inputQRnote: document.getElementById('inputQRnote'), 
+  downloadWrapper: document.getElementById('downloadWrapper'),
+  printBtn: document.getElementById('printBtn')
+};
+
+// ==========================================================================
+// 2. TEXT MODULE CONSTANTS
+// ==========================================================================
+const templates = {
+  whiteLabel: {
+    title: "Professional White-Label License",
+    getContent: () => `
+      <h3>1. Grant of License & IP Transfer</h3>
+      <p>Subject to full payment of the License Fee, the Developer grants the Licensee a perpetual, worldwide, irrevocable, and exclusive <strong>Professional Brand License</strong>.</p>
+      <p><strong>Intellectual Property (IP) Transfer:</strong> Full technical and legal ownership of the software's source code is transferred to the Licensee. The Developer waives all future claims to the code's IP, transforming the software from a managed service into a proprietary company asset.</p>
+      <p><strong>Unlimited Modification:</strong> The Licensee holds unrestricted rights to fork, alter, edit, copy, or resell the code as part of their business assets.</p>
+      
+      <h3>2. White-Label & Sovereignty Rights</h3>
+      <p>This license establishes total digital sovereignty for the Licensee through a formal <strong>Handover Protocol</strong>:</p>
+      <ul>
+        <li><strong>Zero-Attribution Interface:</strong> The Licensee is granted the specific right to completely remove the "Built by Emmy STACK01" signature, metadata, and developer credits from the website footer and documentation to present a 100% proprietary brand experience.</li>
+        <li><strong>Infrastructure Sovereignty:</strong> Administrative control of the project repository (GitHub/ZIP containing Astro, HTML5, or GSAP files), hosting environments (Vercel/Netlify), domain DNS credentials, and integrated third-party APIs (e.g., Paystack, Google Search Console) shall be fully transferred to the Licensee's accounts.</li>
+      </ul>
+
+      <h3>3. Master Release Package Delivery</h3>
+      <p>Upon execution, the Developer will deliver the <strong>Master Release Package</strong>, which includes:</p>
+      <p>1. <strong>The Digital DNA:</strong> Clean, zero-attribution source code and the original UI/UX Asset Vault.<br>
+         2. <strong>IP Certificate:</strong> A formal PDF document confirming full title deed and ownership transfer.<br>
+         3. <strong>System Documentation:</strong> The structural blueprint, modification guide, and deployment manual for independent scaling.</p>
+
+      <h3>4. No Warranty & Limitation of Liability</h3>
+      <p>The software is provided <strong>"as is"</strong> without warranty of any kind, express or implied. Following the successful transfer of the code repository and administrative credentials, the Developer is entirely released from any ongoing maintenance, hosting liabilities, or claims arising from the Licensee's independent modifications and deployment.</p>
+    `
+  },
+  projectAgreement: {
+    title: "Project Development Agreement",
+    getContent: (flags) => {
+      let sectionNum = 1;
+      let html = '';
+
+      let scopeItems = '';
+      if (flags.creative) scopeItems += `<li><strong>Creative Assets:</strong> Custom Brand Identity kit (Color Palette, Typography, Favicon set, Open Graph tags) and complete UI/UX Website Design mock-ups.</li>`;
+      if (flags.technical) scopeItems += `<li><strong>Technical Architecture:</strong> Custom-coded core development (HTML5/CSS3/ES6+ JavaScript or Astro ecosystem) featuring fluid GSAP animations, technical On-Page SEO optimization, and standard indexing assets (robots.txt, sitemap.xml).</li>`;
+      if (flags.deployment) scopeItems += `<li><strong>Deployment Operations:</strong> Production hosting setup via Git-backed infrastructure (GitHub repository / Vercel orchestration) and custom domain routing configuration.</li>`;
+      if (flags.search) scopeItems += `<li><strong>Search Verification:</strong> Official site registration and indexing submission via Google Search Console.</li>`;
+
+      html += `
+        <h3>${sectionNum}. Scope of Work</h3>
+        <p>Emmy STACK01 will execute and deliver the following specific project modules:</p>
+        <ul>${scopeItems || '<li><em>No modules selected. Reference custom addendum notes.</em></li>'}</ul>
+      `;
+
+      if (flags.clause2) {
+        html += `
+          <h3>${++sectionNum}. Financial & Milestone Terms</h3>
+          <p>All financial transactions are calculated and executed exclusively in USD ($). The total project fee is fixed at ${elements.inputFee.value}, split across two clear project milestones:</p>
+          <ul>
+            <li><strong>Milestone 1 (35% Booking Deposit):</strong> Due upon Client approval of the initial UI/UX Design wireframes and layout blueprints. Engineering of the custom code base will commence immediately upon receipt of this balance.</li>
+            <li><strong>Milestone 2 (65% Final Balance):</strong> Due upon final verification of the fully operational application hosted on the production staging repository, prior to final asset ownership transfer.</li>
+          </ul>
+        `;
+      }
+
+      if (flags.clause3) {
+        html += `
+          <h3>${++sectionNum}. Domain Infrastructure & Costs</h3>
+          <p><strong>Developer Engineering:</strong> Technical DNS configuration, nameserver routing protocols, and record mapping (A, CNAME, TXT) are included entirely free of charge.</p>
+          <p><strong>Client Responsibility:</strong> The Client retains sole financial responsibility for purchasing their target domain asset from a DNS registrar (e.g., Namecheap.com) and sustaining its ongoing annual subscription renewals.</p>
+        `;
+      }
+
+      html += `
+        <h3>${++sectionNum}. Code Ownership & Future Upgrades</h3>
+        <p><strong>Default Operational Transfer:</strong> Upon successful clearance of Milestone 2, the Client is granted full operational access to the website properties. By default, the underlying source code ecosystem, core "Digital DNA" engineering files, and structural maintenance framework remain managed within the Emmy STACK01 development network.</p>
+        <p><strong>Continuous Maintenance:</strong> For post-launch text alterations, copy changes, layout expansions, or priority ecosystem scaling, the Client can opt into a structured Monthly Growth Retainer (MGR) plan.</p>
+      `;
+
+      if (flags.clause5) {
+        html += `
+          <h3>${++sectionNum}. Developer Attribution & White Label Upgrades</h3>
+          <p><strong>Standard Attribution:</strong> Emmy STACK01 reserves the right to maintain a clean, high-performance attribution tag within the application’s footer layer (e.g., "Built by Emmy STACK01").</p>
+          <p><strong>White Label Brand License Option:</strong> The Client can completely detach their project from the Emmy STACK01 infrastructure by purchasing a White Label Brand License for a flat fee of $100.</p>
+          <p>Acquiring the License grants the Client: 100% full Intellectual Property (IP) and source code ownership, complete removal of all developer attribution tags, and total freedom to host, fork, modify, or redistribute the software on independent servers or private infrastructure.</p>
+        `;
+      }
+
+      if (flags.clause6) {
+        html += `
+          <h3>${++sectionNum}. Termination & Kill Fee Clauses</h3>
+          <p>If the Client chooses to terminate this project after design blueprints are finalized and Milestone 1 has been settled, Emmy STACK01 will halt all further code production. Emmy STACK01 retains the initial 35% milestone balance as a non-refundable "Kill Fee" to directly cover the specialized design labor already performed.</p>
+        `;
+      }
+
+      return html;
+    }
+  }
+};
+
+// ==========================================================================
+// 3. ZERO-GLITCH DOUBLE-BUFFERED LAYOUT SPLITTER ENGINE
+// ==========================================================================
+function renderDocument() {
+  const currentMode = elements.templateSelect.value;
+  const activeTemplate = templates[currentMode];
+  if (!activeTemplate) return;
+
+  // Toggle operational settings controls visually
+  const agreementControls = document.getElementById('agreementControls');
+  if (agreementControls) {
+    agreementControls.style.display = currentMode === 'projectAgreement' ? 'block' : 'none';
+  }
+
+  const flags = {
+    creative: document.getElementById('toggleCreative')?.checked || false,
+    technical: document.getElementById('toggleTechnical')?.checked || false,
+    deployment: document.getElementById('toggleDeployment')?.checked || false,
+    search: document.getElementById('toggleSearch')?.checked || false,
+    clause2: document.getElementById('toggleClause2')?.checked || false,
+    clause3: document.getElementById('toggleClause3')?.checked || false,
+    clause5: document.getElementById('toggleClause5')?.checked || false,
+    clause6: document.getElementById('toggleClause6')?.checked || false
+  };
+
+  const clientVal = elements.inputClient.value.trim() || "[Client Name]";
+  const projectVal = elements.inputProject.value.trim() || "[Project Name]";
+  const dateVal = elements.inputDate.value.trim() || "[Effective Date]";
+  const feeVal = elements.inputFee.value.trim() || "[Fee Amount]";
+  const qrnoteVal = elements.inputQRnote.value.trim() || "";
+  const qrUrl = elements.inputQR.value.trim();
+
+  const clientLabel = currentMode === 'projectAgreement' ? "Client:" : "Licensee:";
+  const feeLabel = currentMode === 'projectAgreement' ? "Project Fee:" : "License Fee:";
+  const displayFeeRow = (currentMode === 'whiteLabel' || flags.clause2);
+
+  // STAGE A: Create an isolated virtual sandbox to check exact micro-height increments
+  const sandbox = document.createElement('div');
+  sandbox.style.width = '210mm';
+  sandbox.style.padding = '25mm 20mm';
+  sandbox.style.position = 'absolute';
+  sandbox.style.left = '-9999px';
+  sandbox.style.visibility = 'hidden';
+  sandbox.className = 'paper-sheet-sandbox'; 
+  document.body.appendChild(sandbox);
+
+  // Deep-parse the content into fine-grained standalone elements
+  const parser = new DOMParser();
+  const parsedDoc = parser.parseFromString(`<div>${activeTemplate.getContent(flags)}</div>`, 'text/html');
+  const fineElements = Array.from(parsedDoc.querySelector('div').children);
+
+  // Setup A4 layout limits (85% capacity threshold)
+  const maxPageHeightPixels = 1100; 
+  let pagesElementsArray = [];
+
+  // Helper macro to generate a fresh running header frame for sub-pages
+  const getSubPageHeaderHTML = () => `
+    <header class="doc-header" style="margin-bottom: 1.5rem; padding-bottom: 0.75rem;">
+      <div class="doc-logo-emmy" style="font-size: 1.1rem;">Emmy <span>STACK01</span></div>
+      <div class="doc-client-logo" style="font-size: 0.9rem;">${clientVal.toUpperCase()}</div>
+    </header>
+    <div class="doc-body">
+  `;
+
+  // Start Sheet 1 with full brand presentation metadata
+  let currentPageContentHTML = `
+    <header class="doc-header">
+      <div class="doc-logo-emmy">Emmy <span>STACK01</span></div>
+      <div class="doc-client-logo">${clientVal.toUpperCase()}</div>
+    </header>
+    <h1 class="doc-title">${activeTemplate.title}</h1>
+    <table class="doc-meta-table">
+      <tr><td>Software:</td><td>${projectVal}</td></tr>
+      <tr><td>Developer:</td><td>Emmy STACK01</td></tr>
+      <tr><td>${clientLabel}</td><td>${clientVal}</td></tr>
+      <tr><td>Effective Date:</td><td>${dateVal}</td></tr>
+      ${displayFeeRow ? `<tr><td>${feeLabel}</td><td>${feeVal}</td></tr>` : ''}
+    </table>
+    <div class="doc-body">
+  `;
+
+  // STAGE B: Iterate on a micro-granular block level (Paragraph by Paragraph)
+  fineElements.forEach((node) => {
+    if (node.tagName.toLowerCase() === 'ul') {
+      const listItems = Array.from(node.querySelectorAll('li'));
+      currentPageContentHTML += '<ul>';
+      
+      listItems.forEach((li) => {
+        sandbox.innerHTML = currentPageContentHTML + li.outerHTML + '</ul></div>';
+        
+        if (sandbox.clientHeight > maxPageHeightPixels) {
+          currentPageContentHTML += '</ul></div>';
+          pagesElementsArray.push(currentPageContentHTML);
+          currentPageContentHTML = getSubPageHeaderHTML() + '<ul>' + li.outerHTML;
+        } else {
+          currentPageContentHTML += li.outerHTML;
+        }
+      });
+      currentPageContentHTML += '</ul>'; 
+    } 
+    else {
+      sandbox.innerHTML = currentPageContentHTML + node.outerHTML + '</div>';
+      
+      if (sandbox.clientHeight > maxPageHeightPixels) {
+        currentPageContentHTML += '</div>';
+        pagesElementsArray.push(currentPageContentHTML);
+        currentPageContentHTML = getSubPageHeaderHTML() + node.outerHTML;
+      } else {
+        currentPageContentHTML += node.outerHTML;
+      }
+    }
+  });
+
+  currentPageContentHTML += '</div>';
+  pagesElementsArray.push(currentPageContentHTML);
+
+  // STAGE C: Append Signatures & Static QR Codes
+  const uniqueQRKey = "qr_" + Math.random().toString(36).substr(2, 9);
+  const legalFooterMarkup = `
+    <div class="signature-grid" style="margin-top: auto; padding-top: 1.5rem;">
+      <div class="sig-block">
+        <div class="sig-line">
+          <strong>Developer Signature:</strong><br><br>
+          Emmy STACK01 Authorized Representative<br><br>
+          Date: ________________________
+        </div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-line">
+          <strong>Recipient Signature:</strong><br><br>
+          <span>${clientVal}</span> Authorized Representative<br><br>
+          Date: ________________________
+        </div>
+      </div>
+    </div>
+    <footer class="doc-footer" style="margin-top: 1.5rem;">
+      <div style="font-size: 0.75rem; color: #718096; max-width: 75%; text-align: left;">${qrnoteVal}</div>
+      <div id="${uniqueQRKey}" class="qr-container" style="${qrUrl === "" ? 'display:none;' : 'display:block;'}"></div>
+    </footer>
+  `;
+
+  let finalPageIndex = pagesElementsArray.length - 1;
+  sandbox.innerHTML = pagesElementsArray[finalPageIndex] + legalFooterMarkup;
+
+  if (sandbox.clientHeight > maxPageHeightPixels) {
+    let emptySignatureSheet = `
+      <header class="doc-header" style="margin-bottom: 1.5rem; padding-bottom: 0.75rem;">
+        <div class="doc-logo-emmy" style="font-size: 1.1rem;">Emmy <span>STACK01</span></div>
+        <div class="doc-client-logo" style="font-size: 0.9rem;">${clientVal.toUpperCase()}</div>
+      </header>
+      <div class="doc-body" style="flex-grow:1;"></div>
+      ${legalFooterMarkup}
+    `;
+    pagesElementsArray.push(emptySignatureSheet);
+  } else {
+    pagesElementsArray[finalPageIndex] = pagesElementsArray[finalPageIndex] + legalFooterMarkup;
+  }
+
+  // STAGE D: ATOMIC UPDATE (Swapping elements seamlessly without breaking document height)
+  // Create a detached workspace element in memory
+  const fragmentBuffer = document.createDocumentFragment();
+
+  pagesElementsArray.forEach((pageHTML) => {
+    const pageSheetWrapper = document.createElement('article');
+    pageSheetWrapper.className = 'paper-sheet';
+    pageSheetWrapper.innerHTML = pageHTML;
+    fragmentBuffer.appendChild(pageSheetWrapper);
+  });
+
+  // Wipe the container and append the buffer in one single computational block repaint
+  elements.downloadWrapper.innerHTML = "";
+  elements.downloadWrapper.appendChild(fragmentBuffer);
+
+  // Clean layout tracking memory
+  document.body.removeChild(sandbox);
+
+  // STAGE E: Instantiate QR Asset on targeted key selector
+  if (qrUrl !== "") {
+    const qrTargetDOMNode = document.getElementById(uniqueQRKey);
+    if (qrTargetDOMNode) {
+      new QRCode(qrTargetDOMNode, {
+        text: qrUrl,
+        width: 80,
+        height: 80,
+        colorDark : "#22386e",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
+    }
+  }
+}
+
+// ==========================================================================
+// 4. ACTIVE EVENT RUNTIME INITIALIZATIONS
+// ==========================================================================
+const synchronizationSelectors = [
+  elements.templateSelect, elements.inputClient, elements.inputProject, 
+  elements.inputDate, elements.inputFee, elements.inputQR, elements.inputQRnote 
+];
+synchronizationSelectors.forEach(targetSelector => {
+  if (targetSelector) targetSelector.addEventListener('input', renderDocument);
+});
+
+const layoutCheckboxes = [
+  'toggleCreative', 'toggleTechnical', 'toggleDeployment', 'toggleSearch',
+  'toggleClause2', 'toggleClause3', 'toggleClause5', 'toggleClause6'
+];
+layoutCheckboxes.forEach(id => {
+  document.getElementById(id)?.addEventListener('change', renderDocument);
+});
+
+// Run rendering engine on initial startup
+renderDocument();
+
+// ==========================================================================
+// 5. EXPORT CONTROLLER EXECUTIONS
+// ==========================================================================
+elements.printBtn.addEventListener('click', () => {
+  const currentMode = elements.templateSelect.value;
+  const clientName = elements.inputClient.value.trim() || "Client";
+  
+  const filename = currentMode === 'whiteLabel' 
+    ? `Commercial_White_Label_License_${clientName.replace(/\s+/g, '_')}.pdf`
+    : `Project_Development_Agreement_${clientName.replace(/\s+/g, '_')}.pdf`;
+
+  const pdfConfigurations = {
+    margin:       0,
+    filename:     filename,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak:    { mode: 'css' }
+  };
+
+  html2pdf().set(pdfConfigurations).from(elements.downloadWrapper).save();
+});
+</script>
+</body>
+</html>
