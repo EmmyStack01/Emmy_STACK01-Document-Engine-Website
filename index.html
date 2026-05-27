@@ -155,7 +155,7 @@
     background: var(--bg-print);
     color: var(--text-main);
     width: 210mm;
-    height: 297mm; /* Rigid calculation alignment across viewport heights */
+    height: 297mm; 
     padding: 25mm 20mm;
     margin: 0 auto;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
@@ -165,10 +165,16 @@
     flex-direction: column;
     overflow: hidden; 
     
-    /* CRITICAL FIXES FOR PDF CAPTURE ENGINE PACKAGING */
+    /* RESPECT PAGE BREAK BOUNDARIES EXCLUSIVELY */
     page-break-inside: avoid !important;
     page-break-after: always !important;
     break-after: page !important;
+  }
+
+  /* FIX: REMOVE BREAK ON THE ABSOLUTE LAST SHEET TO PREVENT BLANK TRAILING PAGES */
+  .paper-sheet:last-of-type {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   /* --- HIGH-FIDELITY TYPE & BRAND ARCHITECTURE --- */
@@ -307,8 +313,8 @@
 
     .paper-sheet {
       width: 210mm !important;
-      height: 297mm !important; /* Forces physical boundary mapping */
-      padding: 20mm 20mm 15mm 20mm !important; /* Slightly optimized text safe boundaries */
+      height: 297mm !important; 
+      padding: 20mm 20mm 15mm 20mm !important; 
       box-shadow: none !important;
       margin: 0 !important;
       page-break-after: always !important;
@@ -563,7 +569,7 @@ function renderDocument() {
   const fineElements = Array.from(parsedDoc.querySelector('div').children);
 
   // ADJUSTED CEILING BUFFER: 1020px matches perfectly to native PDF canvas ratios
-  const maxPageHeightPixels = 1020; 
+  const maxPageHeightPixels = 1100; 
   let pagesElementsArray = [];
 
   // Helper macro to generate a fresh running header frame for sub-pages
@@ -724,7 +730,7 @@ layoutCheckboxes.forEach(id => {
 renderDocument();
 
 // ==========================================================================
-// 5. EXPORT CONTROLLER EXECUTIONS
+// 5. EXPORT CONTROLLER EXECUTIONS (UPDATED FOR INFINITE DOWNLOADS)
 // ==========================================================================
 elements.printBtn.addEventListener('click', () => {
   const currentMode = elements.templateSelect.value;
@@ -734,7 +740,9 @@ elements.printBtn.addEventListener('click', () => {
     ? `Commercial_White_Label_License_${clientName.replace(/\s+/g, '_')}.pdf`
     : `Project_Development_Agreement_${clientName.replace(/\s+/g, '_')}.pdf`;
 
-  // ENHANCED CONFIGURATION CRADLE FOR ACCURATE GRAPHICS RENDER
+  // CLONE CONTENT ATOMICALLY TO PREVENT ENGINE INSTANCE MUTATION LOCKS
+  const targetClone = elements.downloadWrapper.cloneNode(true);
+
   const pdfConfigurations = {
     margin:       0,
     filename:     filename,
@@ -748,10 +756,11 @@ elements.printBtn.addEventListener('click', () => {
       scrollY: 0
     },
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak:    { mode: 'css' } // Forces tracking via our structural page-break rules
+    pagebreak:    { mode: 'css' } 
   };
 
-  html2pdf().set(pdfConfigurations).from(elements.downloadWrapper).save();
+  // PASS CLONED ELEMENT OBJECT TO NATIVE RUNTIME ENGINE
+  html2pdf().set(pdfConfigurations).from(targetClone).save();
 });
 </script>
 </body>
