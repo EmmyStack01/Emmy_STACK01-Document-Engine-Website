@@ -740,8 +740,6 @@ elements.printBtn.addEventListener('click', () => {
     ? `Commercial_White_Label_License_${clientName.replace(/\s+/g, '_')}.pdf`
     : `Project_Development_Agreement_${clientName.replace(/\s+/g, '_')}.pdf`;
 
-  // CLONE CONTENT ATOMICALLY TO PREVENT ENGINE INSTANCE MUTATION LOCKS
-  const targetClone = elements.downloadWrapper.cloneNode(true);
 
   const pdfConfigurations = {
     margin:       0,
@@ -758,9 +756,7 @@ elements.printBtn.addEventListener('click', () => {
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak:    { mode: 'css' } 
   };
-
-  // PASS CLONED ELEMENT OBJECT TO NATIVE RUNTIME ENGINE
-  html2pdf().set(pdfConfigurations).from(targetClone).save();
+  html2pdf().set(pdfConfigurations).from(elements.downloadWrapper).save();
 });
 </script>
 </body>
