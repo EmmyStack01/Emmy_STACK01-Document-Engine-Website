@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Emmy STACK01 - PDF Document Engine</title>
-  <!-- Typography imports -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
@@ -165,6 +164,11 @@
     display: flex;
     flex-direction: column;
     overflow: hidden; 
+    
+    /* CRITICAL FIXES FOR PDF CAPTURE ENGINE PACKAGING */
+    page-break-inside: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
   }
 
   /* --- HIGH-FIDELITY TYPE & BRAND ARCHITECTURE --- */
@@ -175,6 +179,7 @@
     border-bottom: 2px solid var(--primary); 
     padding-bottom: 1.5rem; 
     margin-bottom: 2rem; 
+    page-break-inside: avoid !important;
   }
   
   .doc-logo-emmy { 
@@ -201,9 +206,10 @@
     margin-bottom: 1.5rem; 
     text-transform: uppercase; 
     line-height: 1.2; 
+    page-break-inside: avoid !important;
   }
   
-  .doc-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 2.5rem; }
+  .doc-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 2.5rem; page-break-inside: avoid !important; }
   .doc-meta-table td { padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
   .doc-meta-table td:first-child { font-weight: 700; color: var(--secondary); width: 30%; }
 
@@ -217,11 +223,13 @@
     text-transform: uppercase; 
     border-bottom: 1px solid #e2e8f0; 
     padding-bottom: 0.25rem; 
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   
-  .doc-body p { margin-bottom: 1rem; text-align: justify; }
+  .doc-body p { margin-bottom: 1rem; text-align: justify; page-break-inside: avoid !important; }
   .doc-body ul { margin-left: 1.25rem; margin-bottom: 1rem; }
-  .doc-body li { margin-bottom: 0.4rem; }
+  .doc-body li { margin-bottom: 0.4rem; page-break-inside: avoid !important; }
 
   .signature-grid { 
     display: grid; 
@@ -229,6 +237,8 @@
     gap: 3rem; 
     width: 100%; 
     margin-top: auto; 
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   
   .sig-line { 
@@ -246,6 +256,7 @@
     margin-top: 2rem; 
     padding-top: 1.5rem; 
     border-top: 1px solid #e2e8f0; 
+    page-break-inside: avoid !important;
   }
   
   .qr-container { 
@@ -323,7 +334,6 @@
 </head>
 <body>
 
-  <!-- LEFT PANEL: CONTROLS & CONTENT INJECTION -->
   <aside class="control-panel">
     <h2 class="panel-title">Document Engine</h2>
     
@@ -388,12 +398,10 @@
     <button class="btn-export" id="printBtn">Export Print-Ready PDF</button>
   </aside>
 
-  <!-- RIGHT PANEL: HIGH FIDELITY PRINT PREVIEW CANVAS -->
   <main class="preview-container">
       <div id="downloadWrapper"></div>
   </main>
 
-  <!-- --- STATE & GENERATION ENGINE --- -->
   <script>
 // ==========================================================================
 // 1. DOM INITIALIZATION
@@ -554,8 +562,8 @@ function renderDocument() {
   const parsedDoc = parser.parseFromString(`<div>${activeTemplate.getContent(flags)}</div>`, 'text/html');
   const fineElements = Array.from(parsedDoc.querySelector('div').children);
 
-  // Setup A4 layout limits (85% capacity threshold)
-  const maxPageHeightPixels = 1100; 
+  // ADJUSTED CEILING BUFFER: 1020px matches perfectly to native PDF canvas ratios
+  const maxPageHeightPixels = 1020; 
   let pagesElementsArray = [];
 
   // Helper macro to generate a fresh running header frame for sub-pages
@@ -662,7 +670,6 @@ function renderDocument() {
   }
 
   // STAGE D: ATOMIC UPDATE (Swapping elements seamlessly without breaking document height)
-  // Create a detached workspace element in memory
   const fragmentBuffer = document.createDocumentFragment();
 
   pagesElementsArray.forEach((pageHTML) => {
@@ -672,7 +679,6 @@ function renderDocument() {
     fragmentBuffer.appendChild(pageSheetWrapper);
   });
 
-  // Wipe the container and append the buffer in one single computational block repaint
   elements.downloadWrapper.innerHTML = "";
   elements.downloadWrapper.appendChild(fragmentBuffer);
 
@@ -728,13 +734,21 @@ elements.printBtn.addEventListener('click', () => {
     ? `Commercial_White_Label_License_${clientName.replace(/\s+/g, '_')}.pdf`
     : `Project_Development_Agreement_${clientName.replace(/\s+/g, '_')}.pdf`;
 
+  // ENHANCED CONFIGURATION CRADLE FOR ACCURATE GRAPHICS RENDER
   const pdfConfigurations = {
     margin:       0,
     filename:     filename,
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    html2canvas:  { 
+      scale: 2, 
+      useCORS: true, 
+      logging: false,
+      letterRendering: true,
+      scrollX: 0,
+      scrollY: 0
+    },
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak:    { mode: 'css' }
+    pagebreak:    { mode: 'css' } // Forces tracking via our structural page-break rules
   };
 
   html2pdf().set(pdfConfigurations).from(elements.downloadWrapper).save();
