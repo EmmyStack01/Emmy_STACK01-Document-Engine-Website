@@ -510,13 +510,13 @@
     font-family: 'DM Mono', monospace;
   }
 
-  /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
+    /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
   @media screen and (max-width: 900px) {
     body { flex-direction: column; overflow-y: auto; height: auto; }
     .control-panel { width: 100%; min-width: 0; height: auto; border-right: none; border-bottom: 1px solid var(--ui-border); }
     .preview-container { width: 100%; height: auto; overflow: visible; padding: 1rem 0.3rem; }
     #downloadWrapper { transform: scale(0.88); transform-origin: top center; }
-    .paper-sheet { box-shadow: none; }
+    .paper-sheet { box-shadow: none; margin: 0 auto !important; }
   }
 
   /* ── PRINT ───────────────────────────────────────────────────────────── */
@@ -525,11 +525,12 @@
     html, body { background: #fff !important; width: 210mm !important; height: auto !important; overflow: visible !important; }
     .control-panel { display: none !important; }
     .preview-container { width: 210mm !important; padding: 0 !important; background: none !important; }
-    #downloadWrapper { width: 210mm !important; gap: 0 !important; }
+    #downloadWrapper { width: 210mm !important; gap: 0 !important; display: block !important; }
     .paper-sheet {
       width: 210mm !important; height: 297mm !important;
       padding: 22mm 22mm 20mm 22mm !important;
-      box-shadow: none !important; margin: 0 !important;
+      box-shadow: none !important; 
+      margin: 0 0 0 0 !important; /* Left-align completely for rendering engines */
       page-break-after: always !important; break-after: page !important;
     }
     .paper-sheet:last-of-type { page-break-after: avoid !important; break-after: avoid !important; }
@@ -538,7 +539,8 @@
     .doc-body ul { margin-bottom: 0.58rem !important; }
     .doc-body li { margin-bottom: 0.2rem !important; }
     .page-stamp  { display: none !important; }
-  }
+    }
+    
 
   /* ── EXPORT OVERLAY ──────────────────────────────────────────────────── */
   .export-overlay {
@@ -1012,7 +1014,7 @@ el.printBtn.addEventListener('click', async () => {
   await new Promise(r => setTimeout(r, 100));
 
   try {
-    await html2pdf().set({
+        await html2pdf().set({
       margin: 0,
       filename: name,
       image:       { type: 'jpeg', quality: 0.99 },
@@ -1023,10 +1025,19 @@ el.printBtn.addEventListener('click', async () => {
         letterRendering: true,
         scrollX: 0,
         scrollY: 0,
+        width: 794, /* Locks screenshot capture scope to standard A4 pixel width */
         windowWidth: 794,
         backgroundColor: '#ffffff',
         onclone: (doc) => {
-          // Force each sheet to exact A4 dimensions in PDF clone
+          // Flatten wrapper container layout settings in the isolated DOM instance
+          const wrapper = doc.getElementById('downloadWrapper');
+          if (wrapper) {
+            wrapper.style.width = '794px';
+            wrapper.style.display = 'block';
+            wrapper.style.margin = '0';
+            wrapper.style.padding = '0';
+          }
+          
           doc.querySelectorAll('.paper-sheet').forEach(s => {
             s.style.width        = '210mm';
             s.style.height       = '297mm';
@@ -1036,7 +1047,7 @@ el.printBtn.addEventListener('click', async () => {
             s.style.pageBreakAfter = 'always';
             s.style.breakAfter    = 'page';
             s.style.boxShadow    = 'none';
-            s.style.margin       = '0';
+            s.style.margin       = '0 0 0 0'; /* Forces strict left positioning inside the clone */
           });
           // Remove screen-only elements
           doc.querySelectorAll('.page-stamp').forEach(s => s.remove());
@@ -1046,6 +1057,7 @@ el.printBtn.addEventListener('click', async () => {
       jsPDF:     { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
       pagebreak: { mode: ['css', 'legacy'] }
     }).from(el.downloadWrapper).save();
+  
 
     el.exportStatus.textContent = '✓ PDF exported successfully';
     el.exportStatus.className = 'export-status ok';
